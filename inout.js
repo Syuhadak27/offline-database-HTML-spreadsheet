@@ -1,33 +1,27 @@
-// Simpan & ambil data dari cache
-async function simpanKeCache_INOUT(url, data) {
-  const cache = await caches.open("inout-cache");
-  await cache.put(url, new Response(JSON.stringify(data)));
+// ===== Simpan & ambil data dari localStorage =====
+function simpanKeLocal_INOUT(key, data) {
+  localStorage.setItem(key, JSON.stringify(data));
 }
 
-async function ambilDariCache_INOUT(url) {
-  const cache = await caches.open("inout-cache");
-  const response = await cache.match(url);
-  if (response) {
-    return await response.json();
-  }
-  return [];
+function ambilDariLocal_INOUT(key) {
+  const data = localStorage.getItem(key);
+  return data ? JSON.parse(data) : [];
 }
 
-// Refresh data dari API & simpan ke cache
+// ===== Refresh data dari API & simpan ke localStorage =====
 async function resetDataInout() {
   try {
     if (!navigator.onLine) {
       throw new Error("Tidak ada koneksi internet. Silakan cek jaringan Anda.");
     }
 
-    // Tampilkan pesan loading
     document.getElementById("result").innerHTML =
       "<p style='text-align:center;'>🔄 Data sedang diperbarui...</p>";
 
-    const url = `${CONFIG.BASE_URL}?sheet=inout&range=A2:f`;
+    const url = `${CONFIG.BASE_URL}?sheet=inout&range=A2:F`;
     console.log("Fetching dari URL:", url);
 
-    const response = await fetch(url, { method: "GET" });
+    const response = await fetch(url);
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`Gagal fetch: ${response.status} - ${errorText}`);
@@ -38,9 +32,9 @@ async function resetDataInout() {
       throw new Error("Format data dari API tidak valid.");
     }
 
-    // Simpan ke cache
-    await simpanKeCache_INOUT(url, json);
-    console.log("Data tersimpan di cache:", json.length);
+    // Simpan ke localStorage
+    simpanKeLocal_INOUT("inout-data", json);
+    console.log("Data tersimpan di localStorage:", json.length);
 
     showToast("✅ Data INOUT berhasil diupdate!");
     document.getElementById("result").innerHTML = "";
@@ -57,7 +51,7 @@ async function resetDataInout() {
   }
 }
 
-// Cari data di cache sesuai keyword
+// ===== Cari data di localStorage sesuai keyword =====
 async function search_inout() {
   const query = document.getElementById("searchInput").value.trim().toLowerCase();
   const resultContainer = document.getElementById("result");
@@ -67,9 +61,7 @@ async function search_inout() {
     return;
   }
 
-  const url =
-    "https://script.google.com/macros/s/AKfycbw8Qnf1FLZSH3I9CN4HopzEvDAP7qwf4rTDq5R4-9bwvZrGV1R3GFjkuNejBKykkdnokA/exec?sheet=inout&range=A2:F";
-  const data = await ambilDariCache_INOUT(url);
+  const data = ambilDariLocal_INOUT("inout-data");
 
   if (!data || data.length === 0) {
     resultContainer.innerHTML = `
@@ -128,40 +120,37 @@ async function search_inout() {
         <tbody>`;
 
   hasil.forEach(row => {
-  let rawDate = row[0];
-  let formattedDate = rawDate;
+    let rawDate = row[0];
+    let formattedDate = rawDate;
 
-  if (rawDate) {
-    let d = new Date(rawDate);
-    if (!isNaN(d)) {
-      let day = String(d.getDate()).padStart(2, "0");
-      let month = String(d.getMonth() + 1).padStart(2, "0");
-      let year = d.getFullYear();
-      formattedDate = `${day}-${month}-${year}`;
+    if (rawDate) {
+      let d = new Date(rawDate);
+      if (!isNaN(d)) {
+        let day = String(d.getDate()).padStart(2, "0");
+        let month = String(d.getMonth() + 1).padStart(2, "0");
+        let year = d.getFullYear();
+        formattedDate = `${day}-${month}-${year}`;
+      }
     }
-  }
 
-  html += `<tr>
-    <td>${formattedDate}</td>
-    <td>${row[1]}</td>
-    <td>${row[2]}</td>
-    <td>${row[3]}</td>
-    <td>${row[4]}</td>
-    <td>${row[5]}</td>
-  </tr>`;
-});
+    html += `<tr>
+      <td>${formattedDate}</td>
+      <td>${row[1]}</td>
+      <td>${row[2]}</td>
+      <td>${row[3]}</td>
+      <td>${row[4]}</td>
+      <td>${row[5]}</td>
+    </tr>`;
+  });
 
   html += `</tbody></table></div>`;
   resultContainer.innerHTML = html;
 }
 
-// Inisialisasi data saat aplikasi dimulai
-window.onload = async function() {
-  const url =
-    "https://script.google.com/macros/s/AKfycbw8Qnf1FLZSH3I9CN4HopzEvDAP7qwf4rTDq5R4-9bwvZrGV1R3GFjkuNejBKykkdnokA/exec?sheet=inout&range=A2:F";
-  const data = await ambilDariCache_INOUT(url);
-
+// ===== Inisialisasi data saat aplikasi dimulai =====
+window.onload = function() {
+  const data = ambilDariLocal_INOUT("inout-data");
   if (!data || data.length === 0) {
-    resetDataInout();
+    console.log("Belum ada data INOUT di localStorage, silakan klik reset.");
   }
 };
